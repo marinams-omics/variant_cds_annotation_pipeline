@@ -1,0 +1,6 @@
+chr5	ensembl	transcript	7125276	7129773	.	-	.	ID=GRMZM2G129913_T06;Parent=GRMZM2G129913;biotype=protein_coding;description=cdna|est|omrna|protein;logic_name=genebuilder
+chr5	ensembl	transcript	7125276	7129774	.	-	.	ID=GRMZM2G129913_T05;Parent=GRMZM2G129913;biotype=protein_coding;description=cdna|omrna|protein;logic_name=genebuilder
+chr5	ensembl	transcript	7125276	7129774	.	-	.	ID=GRMZM2G129913_T04;Parent=GRMZM2G129913;biotype=protein_coding;description=cdna|omrna|protein;logic_name=genebuilder
+chr5	ensembl	transcript	7125276	7129774	.	-	.	ID=GRMZM2G129913_T03;Parent=GRMZM2G129913;biotype=protein_coding;description=est|omrna|protein;logic_name=genebuilder
+chr5	ensembl	transcript	7125276	7129809	.	-	.	ID=GRMZM2G129913_T02;Parent=GRMZM2G129913;biotype=protein_coding;description=est|omrna|protein;logic_name=genebuilder
+chr5	ensembl	transcript	7125276	7129809	.	-	.	ID=GRMZM2G129913_T01;Parent=GRMZM2G129913;biotype=protein_coding;description=est|omrna|protein;logic_name=genebuilder
