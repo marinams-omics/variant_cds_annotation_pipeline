@@ -205,3 +205,43 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# macOS
+
+.DS_Store
+
+# Bioinformatics pipeline data (large files)
+
+# Genome + annotation
+
+spo11_variation/data/genome/*
+spo11_variation/data/annotation/*
+
+# HapMap VCFs
+
+spo11_variation/data/hapmap/*
+
+# Intermediate project data (large + reproducible)
+
+spo11_variation/data/spo11_agpv3/*
+
+# Results
+
+spo11_variation/results/*
+
+# Keep required lightweight inputs 
+
+!spo11_variation/data/project_inputs/
+!spo11_variation/data/project_inputs/*
+
+# Logs
+
+*.log
+
+# Figures (comment if you want tracked)
+
+*.png
+*.pdf
+*.svg
+
+
