@@ -1,0 +1,180 @@
+configfile: "spo11_variation/config/config.yaml"
+
+from pathlib import Path
+
+PROJECT_NAME = config["project_name"]
+GENE_ID = config["gene_id"]
+GENE_NAME = config["gene_name"]
+TRANSCRIPTS = config["transcripts"]
+
+GENOME_FA = config["paths"]["genome_fa"]
+ANNOTATION_GFF = config["paths"]["annotation_gff"]
+HAPMAP_VCF = config["paths"]["hapmap_vcf"]
+PROJECT_INPUTS_DIR = config["paths"]["project_inputs_dir"]
+AA_ORDER = config["paths"]["aa_order"]
+
+RESULTS = config["results_dir"]
+
+PROJECT_GENE_GFF = f"{PROJECT_INPUTS_DIR}/{GENE_NAME}.gene.gff3"
+PROJECT_TX_GFF = f"{PROJECT_INPUTS_DIR}/{GENE_NAME}.transcripts.gff3"
+
+BED_FA_DIR = f"{RESULTS}/01_models/bed_fa"
+BED_VCF_DIR = f"{RESULTS}/01_models/bed_vcf"
+BLOCKMAP_DIR = f"{RESULTS}/01_models/blockmap"
+
+BLOCKS_DIR = f"{RESULTS}/02_sequences/blocks"
+CDS_DIR = f"{RESULTS}/02_sequences/cds"
+PEP_DIR = f"{RESULTS}/02_sequences/pep"
+PEP_NOSTOP_DIR = f"{RESULTS}/02_sequences/pep_nostop"
+
+REGION_DIR = f"{RESULTS}/03_variants/region"
+CDS_VAR_DIR = f"{RESULTS}/03_variants/cds_by_transcript"
+EFFECTS_DIR = f"{RESULTS}/03_variants/effects"
+
+LOGS_DIR = f"{RESULTS}/logs"
+VALIDATION_OK = f"{LOGS_DIR}/validate_inputs.ok"
+
+
+rule all:
+    input:
+        VALIDATION_OK,
+        expand(f"{BED_FA_DIR}/{GENE_ID}_{{t}}.cds.bed", t=TRANSCRIPTS),
+        expand(f"{BED_VCF_DIR}/{GENE_ID}_{{t}}.cds.bed", t=TRANSCRIPTS),
+        expand(f"{BLOCKMAP_DIR}/{{t}}.cds.blockmap.tsv", t=TRANSCRIPTS),
+        expand(f"{BLOCKS_DIR}/{{t}}.cds.blocks.tsv", t=TRANSCRIPTS),
+        expand(f"{CDS_DIR}/{GENE_ID}_{{t}}.cds.fa", t=TRANSCRIPTS),
+        expand(f"{PEP_DIR}/{GENE_ID}_{{t}}.pep.fa", t=TRANSCRIPTS),
+        expand(f"{PEP_NOSTOP_DIR}/{GENE_ID}_{{t}}.pep.nostop.fa", t=TRANSCRIPTS),
+        f"{REGION_DIR}/{GENE_NAME}.region.variants.tsv",
+        expand(f"{CDS_VAR_DIR}/{GENE_NAME}.{{t}}.CDS.variants.tsv", t=TRANSCRIPTS),
+        expand(f"{EFFECTS_DIR}/{GENE_NAME}.{{t}}.CDS.variant_effects.tsv", t=TRANSCRIPTS),
+
+
+rule validate_inputs:
+    input:
+        fasta=GENOME_FA,
+        project_gff=PROJECT_TX_GFF,
+        annotation_gff=ANNOTATION_GFF,
+        vcf=HAPMAP_VCF,
+    output:
+        touch(VALIDATION_OK)
+    shell:
+        r"""
+        mkdir -p {LOGS_DIR}
+        python spo11_variation/scripts/validate_inputs.py \
+          --fasta {input.fasta} \
+          --project-gff {input.project_gff} \
+          --annotation-gff {input.annotation_gff} \
+          --vcf {input.vcf}
+        touch {output}
+        """
+
+
+rule build_cds_beds:
+    input:
+        validate=VALIDATION_OK,
+        project_gff=PROJECT_TX_GFF,
+        annotation_gff=ANNOTATION_GFF,
+    output:
+        bed_fa=expand(f"{BED_FA_DIR}/{GENE_ID}_{{t}}.cds.bed", t=TRANSCRIPTS),
+        bed_vcf=expand(f"{BED_VCF_DIR}/{GENE_ID}_{{t}}.cds.bed", t=TRANSCRIPTS),
+    shell:
+        r"""
+        python spo11_variation/scripts/build_cds_bed_from_gff.py \
+          --project-gff {input.project_gff} \
+          --annotation-gff {input.annotation_gff} \
+          --out-bed-fa-dir {BED_FA_DIR} \
+          --out-bed-vcf-dir {BED_VCF_DIR}
+        """
+
+
+rule build_blockmap:
+    input:
+        bed=f"{BED_VCF_DIR}/{GENE_ID}_{{t}}.cds.bed"
+    output:
+        f"{BLOCKMAP_DIR}/{{t}}.cds.blockmap.tsv"
+    shell:
+        r"""
+        python spo11_variation/scripts/build_blockmap.py \
+          --bed {input.bed} \
+          --out {output}
+        """
+
+
+rule extract_cds_fasta:
+    input:
+        genome=GENOME_FA,
+        bed=f"{BED_FA_DIR}/{GENE_ID}_{{t}}.cds.bed"
+    output:
+        blocks=f"{BLOCKS_DIR}/{{t}}.cds.blocks.tsv",
+        cds=f"{CDS_DIR}/{GENE_ID}_{{t}}.cds.fa"
+    shell:
+        r"""
+        python spo11_variation/scripts/extract_cds_fasta.py \
+          --genome {input.genome} \
+          --bed {input.bed} \
+          --out-blocks {output.blocks} \
+          --out-cds {output.cds}
+        """
+
+
+rule translate_cds_to_pep:
+    input:
+        cds=f"{CDS_DIR}/{GENE_ID}_{{t}}.cds.fa"
+    output:
+        pep=f"{PEP_DIR}/{GENE_ID}_{{t}}.pep.fa",
+        pep_nostop=f"{PEP_NOSTOP_DIR}/{GENE_ID}_{{t}}.pep.nostop.fa"
+    shell:
+        r"""
+        python spo11_variation/scripts/translate_cds_to_pep.py \
+          --cds {input.cds} \
+          --out-pep {output.pep} \
+          --out-pep-nostop {output.pep_nostop}
+        """
+
+
+rule extract_region_variants_from_vcf:
+    input:
+        gene_gff=PROJECT_GENE_GFF,
+        vcf=HAPMAP_VCF
+    output:
+        f"{REGION_DIR}/{GENE_NAME}.region.variants.tsv"
+    shell:
+        r"""
+        python spo11_variation/scripts/extract_region_variants_from_vcf.py \
+          --gene-gff {input.gene_gff} \
+          --vcf {input.vcf} \
+          --out {output}
+        """
+
+
+rule subset_variants_by_bed:
+    input:
+        bed=f"{BED_VCF_DIR}/{GENE_ID}_{{t}}.cds.bed",
+        variants=f"{REGION_DIR}/{GENE_NAME}.region.variants.tsv"
+    output:
+        f"{CDS_VAR_DIR}/{GENE_NAME}.{{t}}.CDS.variants.tsv"
+    shell:
+        r"""
+        python spo11_variation/scripts/subset_variants_by_bed.py \
+          --bed {input.bed} \
+          --variants {input.variants} \
+          --out {output}
+        """
+
+
+rule annotate_cds_variants:
+    input:
+        blockmap=f"{BLOCKMAP_DIR}/{{t}}.cds.blockmap.tsv",
+        cds=f"{CDS_DIR}/{GENE_ID}_{{t}}.cds.fa",
+        variants=f"{CDS_VAR_DIR}/{GENE_NAME}.{{t}}.CDS.variants.tsv"
+    output:
+        f"{EFFECTS_DIR}/{GENE_NAME}.{{t}}.CDS.variant_effects.tsv"
+    shell:
+        r"""
+        python spo11_variation/scripts/annotate_cds_variants.py \
+          --blockmap {input.blockmap} \
+          --cds {input.cds} \
+          --variants {input.variants} \
+          > {output}
+        """
