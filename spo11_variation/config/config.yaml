@@ -1,21 +1,28 @@
 project_name: "spo11_agpv3"
 
-gene_id: "GRMZM2G129913"
-gene_name: "SPO11"
+gene:
+  gene_id: "GRMZM2G129913"
+  gene_name: "SPO11"
 
 transcripts:
-  - T01
-  - T02
-  - T03
-  - T04
-  - T05
-  - T06
+  - "T01"
+  - "T02"
+  - "T03"
+  - "T04"
+  - "T05"
+  - "T06"
 
 paths:
   genome_fa: "spo11_variation/data/genome/B73_RefGen_v3.fa.gz"
   annotation_gff: "spo11_variation/data/annotation/Zea_mays.AGPv3.21.gff3.gz"
   hapmap_vcf: "spo11_variation/data/hapmap/merged_flt_c5.imputed.vcf.gz"
   project_inputs_dir: "spo11_variation/data/project_inputs"
-  aa_order: "spo11_variation/data/project_inputs/Order_of_aa_colors.txt"
 
 results_dir: "spo11_variation/results/spo11_agpv3"
+
+plot:
+  min_pct_full: 0.2
+  min_pct_nonref: 0.15
+  width: 18
+  height: 4.2
+  legend_ncol: 8

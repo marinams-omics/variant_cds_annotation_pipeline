@@ -3,17 +3,24 @@ configfile: "spo11_variation/config/config.yaml"
 from pathlib import Path
 
 PROJECT_NAME = config["project_name"]
-GENE_ID = config["gene_id"]
-GENE_NAME = config["gene_name"]
+
+GENE_ID = config["gene"]["gene_id"]
+GENE_NAME = config["gene"]["gene_name"]
+
 TRANSCRIPTS = config["transcripts"]
 
 GENOME_FA = config["paths"]["genome_fa"]
 ANNOTATION_GFF = config["paths"]["annotation_gff"]
 HAPMAP_VCF = config["paths"]["hapmap_vcf"]
 PROJECT_INPUTS_DIR = config["paths"]["project_inputs_dir"]
-AA_ORDER = config["paths"]["aa_order"]
 
 RESULTS = config["results_dir"]
+
+PLOT_MIN_PCT_FULL = config.get("plot", {}).get("min_pct_full", 0.2)
+PLOT_MIN_PCT_NONREF = config.get("plot", {}).get("min_pct_nonref", 0.15)
+PLOT_WIDTH = config.get("plot", {}).get("width", 18)
+PLOT_HEIGHT = config.get("plot", {}).get("height", 4.2)
+PLOT_LEGEND_NCOL = config.get("plot", {}).get("legend_ncol", 8)
 
 PROJECT_GENE_GFF = f"{PROJECT_INPUTS_DIR}/{GENE_NAME}.gene.gff3"
 PROJECT_TX_GFF = f"{PROJECT_INPUTS_DIR}/{GENE_NAME}.transcripts.gff3"
@@ -27,27 +34,107 @@ CDS_DIR = f"{RESULTS}/02_sequences/cds"
 PEP_DIR = f"{RESULTS}/02_sequences/pep"
 PEP_NOSTOP_DIR = f"{RESULTS}/02_sequences/pep_nostop"
 
-REGION_DIR = f"{RESULTS}/03_variants/region"
+VAR_REGION_DIR = f"{RESULTS}/03_variants/region"
 CDS_VAR_DIR = f"{RESULTS}/03_variants/cds_by_transcript"
 EFFECTS_DIR = f"{RESULTS}/03_variants/effects"
+GENO_TX_DIR = f"{RESULTS}/03_variants/genotypes_by_transcript"
 
+REPORTS_DIR = f"{RESULTS}/04_reports"
 LOGS_DIR = f"{RESULTS}/logs"
+
 VALIDATION_OK = f"{LOGS_DIR}/validate_inputs.ok"
+
+REGION_VARIANTS_TSV = f"{VAR_REGION_DIR}/{GENE_NAME}.region.variants.tsv"
+REGION_GENOTYPES_VCF = f"{VAR_REGION_DIR}/{GENE_NAME}.region.genotypes.vcf"
+
+SITE_SUMMARY_TSV = f"{REPORTS_DIR}/{GENE_NAME}.cds_site_summary.tsv"
+TRANSCRIPT_SUMMARY_TSV = f"{REPORTS_DIR}/{GENE_NAME}.transcript_summary.tsv"
+
+
+def cds_bed_fa(t):
+    return f"{BED_FA_DIR}/{GENE_ID}_{t}.cds.bed"
+
+
+def cds_bed_vcf(t):
+    return f"{BED_VCF_DIR}/{GENE_ID}_{t}.cds.bed"
+
+
+def blockmap_tsv(t):
+    return f"{BLOCKMAP_DIR}/{t}.cds.blockmap.tsv"
+
+
+def cds_blocks_tsv(t):
+    return f"{BLOCKS_DIR}/{t}.cds.blocks.tsv"
+
+
+def cds_fa(t):
+    return f"{CDS_DIR}/{GENE_ID}_{t}.cds.fa"
+
+
+def pep_fa(t):
+    return f"{PEP_DIR}/{GENE_ID}_{t}.pep.fa"
+
+
+def pep_nostop_fa(t):
+    return f"{PEP_NOSTOP_DIR}/{GENE_ID}_{t}.pep.nostop.fa"
+
+
+def cds_variants_tsv(t):
+    return f"{CDS_VAR_DIR}/{GENE_NAME}.{t}.CDS.variants.tsv"
+
+
+def effects_tsv(t):
+    return f"{EFFECTS_DIR}/{GENE_NAME}.{t}.CDS.variant_effects.tsv"
+
+
+def genotype_vcf_t(t):
+    return f"{GENO_TX_DIR}/{GENE_NAME}.{t}.CDS.genotypes.vcf"
+
+
+def aa_freq_long_tsv(t):
+    return f"{REPORTS_DIR}/{GENE_NAME}.{t}.aa_freq.long.tsv"
+
+
+def aa_freq_matrix_tsv(t):
+    return f"{REPORTS_DIR}/{GENE_NAME}.{t}.aa_freq.matrix.tsv"
+
+
+def aa_freq_plot_full_png(t):
+    return f"{REPORTS_DIR}/{GENE_NAME}.{t}.aa_freq.stacked.full.final.png"
+
+
+def aa_freq_plot_nonref_png(t):
+    return f"{REPORTS_DIR}/{GENE_NAME}.{t}.aa_freq.stacked.nonref.final.png"
 
 
 rule all:
     input:
         VALIDATION_OK,
-        expand(f"{BED_FA_DIR}/{GENE_ID}_{{t}}.cds.bed", t=TRANSCRIPTS),
-        expand(f"{BED_VCF_DIR}/{GENE_ID}_{{t}}.cds.bed", t=TRANSCRIPTS),
-        expand(f"{BLOCKMAP_DIR}/{{t}}.cds.blockmap.tsv", t=TRANSCRIPTS),
-        expand(f"{BLOCKS_DIR}/{{t}}.cds.blocks.tsv", t=TRANSCRIPTS),
-        expand(f"{CDS_DIR}/{GENE_ID}_{{t}}.cds.fa", t=TRANSCRIPTS),
-        expand(f"{PEP_DIR}/{GENE_ID}_{{t}}.pep.fa", t=TRANSCRIPTS),
-        expand(f"{PEP_NOSTOP_DIR}/{GENE_ID}_{{t}}.pep.nostop.fa", t=TRANSCRIPTS),
-        f"{REGION_DIR}/{GENE_NAME}.region.variants.tsv",
-        expand(f"{CDS_VAR_DIR}/{GENE_NAME}.{{t}}.CDS.variants.tsv", t=TRANSCRIPTS),
-        expand(f"{EFFECTS_DIR}/{GENE_NAME}.{{t}}.CDS.variant_effects.tsv", t=TRANSCRIPTS),
+
+        expand(cds_bed_fa("{t}"), t=TRANSCRIPTS),
+        expand(cds_bed_vcf("{t}"), t=TRANSCRIPTS),
+        expand(blockmap_tsv("{t}"), t=TRANSCRIPTS),
+
+        expand(cds_blocks_tsv("{t}"), t=TRANSCRIPTS),
+        expand(cds_fa("{t}"), t=TRANSCRIPTS),
+        expand(pep_fa("{t}"), t=TRANSCRIPTS),
+        expand(pep_nostop_fa("{t}"), t=TRANSCRIPTS),
+
+        REGION_VARIANTS_TSV,
+        expand(cds_variants_tsv("{t}"), t=TRANSCRIPTS),
+        expand(effects_tsv("{t}"), t=TRANSCRIPTS),
+
+        SITE_SUMMARY_TSV,
+        TRANSCRIPT_SUMMARY_TSV,
+
+        REGION_GENOTYPES_VCF,
+        expand(genotype_vcf_t("{t}"), t=TRANSCRIPTS),
+
+        expand(aa_freq_long_tsv("{t}"), t=TRANSCRIPTS),
+        expand(aa_freq_matrix_tsv("{t}"), t=TRANSCRIPTS),
+
+        expand(aa_freq_plot_full_png("{t}"), t=TRANSCRIPTS),
+        expand(aa_freq_plot_nonref_png("{t}"), t=TRANSCRIPTS),
 
 
 rule validate_inputs:
@@ -72,12 +159,12 @@ rule validate_inputs:
 
 rule build_cds_beds:
     input:
-        validate=VALIDATION_OK,
+        VALIDATION_OK,
         project_gff=PROJECT_TX_GFF,
         annotation_gff=ANNOTATION_GFF,
     output:
-        bed_fa=expand(f"{BED_FA_DIR}/{GENE_ID}_{{t}}.cds.bed", t=TRANSCRIPTS),
-        bed_vcf=expand(f"{BED_VCF_DIR}/{GENE_ID}_{{t}}.cds.bed", t=TRANSCRIPTS),
+        bed_fa=expand(cds_bed_fa("{t}"), t=TRANSCRIPTS),
+        bed_vcf=expand(cds_bed_vcf("{t}"), t=TRANSCRIPTS),
     shell:
         r"""
         python spo11_variation/scripts/build_cds_bed_from_gff.py \
@@ -90,9 +177,9 @@ rule build_cds_beds:
 
 rule build_blockmap:
     input:
-        bed=f"{BED_VCF_DIR}/{GENE_ID}_{{t}}.cds.bed"
+        bed=cds_bed_vcf("{t}")
     output:
-        f"{BLOCKMAP_DIR}/{{t}}.cds.blockmap.tsv"
+        blockmap_tsv("{t}")
     shell:
         r"""
         python spo11_variation/scripts/build_blockmap.py \
@@ -104,10 +191,10 @@ rule build_blockmap:
 rule extract_cds_fasta:
     input:
         genome=GENOME_FA,
-        bed=f"{BED_FA_DIR}/{GENE_ID}_{{t}}.cds.bed"
+        bed=cds_bed_fa("{t}")
     output:
-        blocks=f"{BLOCKS_DIR}/{{t}}.cds.blocks.tsv",
-        cds=f"{CDS_DIR}/{GENE_ID}_{{t}}.cds.fa"
+        blocks=cds_blocks_tsv("{t}"),
+        cds=cds_fa("{t}")
     shell:
         r"""
         python spo11_variation/scripts/extract_cds_fasta.py \
@@ -120,10 +207,10 @@ rule extract_cds_fasta:
 
 rule translate_cds_to_pep:
     input:
-        cds=f"{CDS_DIR}/{GENE_ID}_{{t}}.cds.fa"
+        cds=cds_fa("{t}")
     output:
-        pep=f"{PEP_DIR}/{GENE_ID}_{{t}}.pep.fa",
-        pep_nostop=f"{PEP_NOSTOP_DIR}/{GENE_ID}_{{t}}.pep.nostop.fa"
+        pep=pep_fa("{t}"),
+        pep_nostop=pep_nostop_fa("{t}")
     shell:
         r"""
         python spo11_variation/scripts/translate_cds_to_pep.py \
@@ -133,12 +220,12 @@ rule translate_cds_to_pep:
         """
 
 
-rule extract_region_variants_from_vcf:
+rule extract_region_variants:
     input:
         gene_gff=PROJECT_GENE_GFF,
         vcf=HAPMAP_VCF
     output:
-        f"{REGION_DIR}/{GENE_NAME}.region.variants.tsv"
+        REGION_VARIANTS_TSV
     shell:
         r"""
         python spo11_variation/scripts/extract_region_variants_from_vcf.py \
@@ -150,10 +237,10 @@ rule extract_region_variants_from_vcf:
 
 rule subset_variants_by_bed:
     input:
-        bed=f"{BED_VCF_DIR}/{GENE_ID}_{{t}}.cds.bed",
-        variants=f"{REGION_DIR}/{GENE_NAME}.region.variants.tsv"
+        bed=cds_bed_vcf("{t}"),
+        variants=REGION_VARIANTS_TSV
     output:
-        f"{CDS_VAR_DIR}/{GENE_NAME}.{{t}}.CDS.variants.tsv"
+        cds_variants_tsv("{t}")
     shell:
         r"""
         python spo11_variation/scripts/subset_variants_by_bed.py \
@@ -165,11 +252,11 @@ rule subset_variants_by_bed:
 
 rule annotate_cds_variants:
     input:
-        blockmap=f"{BLOCKMAP_DIR}/{{t}}.cds.blockmap.tsv",
-        cds=f"{CDS_DIR}/{GENE_ID}_{{t}}.cds.fa",
-        variants=f"{CDS_VAR_DIR}/{GENE_NAME}.{{t}}.CDS.variants.tsv"
+        blockmap=blockmap_tsv("{t}"),
+        cds=cds_fa("{t}"),
+        variants=cds_variants_tsv("{t}")
     output:
-        f"{EFFECTS_DIR}/{GENE_NAME}.{{t}}.CDS.variant_effects.tsv"
+        effects_tsv("{t}")
     shell:
         r"""
         python spo11_variation/scripts/annotate_cds_variants.py \
@@ -177,4 +264,127 @@ rule annotate_cds_variants:
           --cds {input.cds} \
           --variants {input.variants} \
           > {output}
+        """
+
+
+rule summarize_cds_sites:
+    input:
+        expand(effects_tsv("{t}"), t=TRANSCRIPTS)
+    output:
+        SITE_SUMMARY_TSV
+    shell:
+        r"""
+        python spo11_variation/scripts/summarize_cds_sites.py \
+          --effects {input} \
+          --out {output}
+        """
+
+
+rule summarize_transcripts:
+    input:
+        cds=expand(cds_fa("{t}"), t=TRANSCRIPTS),
+        pep=expand(pep_fa("{t}"), t=TRANSCRIPTS),
+        pep_nostop=expand(pep_nostop_fa("{t}"), t=TRANSCRIPTS),
+        variants=expand(cds_variants_tsv("{t}"), t=TRANSCRIPTS),
+        effects=expand(effects_tsv("{t}"), t=TRANSCRIPTS),
+        site_summary=SITE_SUMMARY_TSV
+    output:
+        TRANSCRIPT_SUMMARY_TSV
+    shell:
+        r"""
+        python spo11_variation/scripts/summarize_transcripts.py \
+          --cds {input.cds} \
+          --pep {input.pep} \
+          --pep-nostop {input.pep_nostop} \
+          --variants {input.variants} \
+          --effects {input.effects} \
+          --site-summary {input.site_summary} \
+          --out {output}
+        """
+
+
+rule extract_region_genotypes:
+    input:
+        gene_gff=PROJECT_GENE_GFF,
+        vcf=HAPMAP_VCF
+    output:
+        REGION_GENOTYPES_VCF
+    shell:
+        r"""
+        python spo11_variation/scripts/extract_region_genotypes_from_vcf.py \
+          --gene-gff {input.gene_gff} \
+          --vcf {input.vcf} \
+          --out {output}
+        """
+
+
+rule subset_genotypes_by_bed:
+    input:
+        bed=cds_bed_vcf("{t}"),
+        vcf=REGION_GENOTYPES_VCF
+    output:
+        genotype_vcf_t("{t}")
+    shell:
+        r"""
+        python spo11_variation/scripts/subset_genotypes_by_bed.py \
+          --bed {input.bed} \
+          --vcf {input.vcf} \
+          --out {output}
+        """
+
+
+rule build_aa_frequency_matrix:
+    input:
+        cds=cds_fa("{t}"),
+        effects=effects_tsv("{t}"),
+        vcf=genotype_vcf_t("{t}")
+    output:
+        long=aa_freq_long_tsv("{t}"),
+        matrix=aa_freq_matrix_tsv("{t}")
+    shell:
+        r"""
+        python spo11_variation/scripts/build_aa_frequency_matrix_from_vcf.py \
+          --cds {input.cds} \
+          --effects {input.effects} \
+          --vcf {input.vcf} \
+          --out-long {output.long} \
+          --out-matrix {output.matrix}
+        """
+
+
+rule plot_aa_frequency_full:
+    input:
+        matrix=aa_freq_matrix_tsv("{t}")
+    output:
+        aa_freq_plot_full_png("{t}")
+    shell:
+        r"""
+        python spo11_variation/scripts/plot_aa_frequency_stacked.py \
+          --in-matrix {input.matrix} \
+          --out-png {output} \
+          --title "{GENE_NAME} {wildcards.t} – Amino acid composition by position" \
+          --min-pct {PLOT_MIN_PCT_FULL} \
+          --legend-ncol {PLOT_LEGEND_NCOL} \
+          --width {PLOT_WIDTH} \
+          --height {PLOT_HEIGHT}
+        """
+
+
+rule plot_aa_frequency_nonref:
+    input:
+        matrix=aa_freq_matrix_tsv("{t}")
+    output:
+        aa_freq_plot_nonref_png("{t}")
+    shell:
+        r"""
+        python spo11_variation/scripts/plot_aa_frequency_stacked.py \
+          --in-matrix {input.matrix} \
+          --out-png {output} \
+          --title "{GENE_NAME} {wildcards.t} – Non-reference amino acid frequencies by position" \
+          --min-pct {PLOT_MIN_PCT_NONREF} \
+          --legend-ncol {PLOT_LEGEND_NCOL} \
+          --width {PLOT_WIDTH} \
+          --height {PLOT_HEIGHT} \
+          --compress-reference \
+          --show-variable-rug
         """
